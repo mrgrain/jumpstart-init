@@ -15,6 +15,6 @@
     }
   },
   "scripts": {
-    "jumpstart": "Jumpstart\\Init::init"
+    "jumpstart": "Jumpstart\\Init::jumpstart"
   }
 }

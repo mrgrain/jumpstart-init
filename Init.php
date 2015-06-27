@@ -2,6 +2,9 @@
 namespace Jumpstart;
 
 use Composer\Script\Event;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use RegexIterator;
 
 /**
  * Class Init
@@ -9,6 +12,65 @@ use Composer\Script\Event;
  */
 class Init
 {
+
+    protected static $filePattern = '/^.+\.php$/';
+
+    /**
+     * Publish th plugin to the WordPress plugin repository
+     * @param Event $event
+     */
+    public static function jumpstart(Event $event)
+    {
+        // get information
+        $info = static::questionnaire($event);
+
+        // update file headers
+        $files =  new RegexIterator(
+            new RecursiveIteratorIterator(new RecursiveDirectoryIterator('src')),
+            static::$filePattern,
+            RegexIterator::GET_MATCH
+        );
+        static::updateFiles($event, $files, $info);
+
+        // create composer.json
+    }
+
+    /**
+     * Update the boilerplate files with the additional informations
+     * @param Event $event
+     * @param array $info
+     */
+    public static function updateFiles(Event $event, $files, array $info)
+    {
+        // start
+        $io = $event->getIO();
+        if ($io->askConfirmation('Jumpstart will now update your files with the provided information. Okay? [yes]:'."\t")) {
+            foreach ($files as $file) {
+                $io->write($file."\t", false);
+                $io->write(static::updateFile(array_pop($file), $info) ? 'OK' : 'Error');
+            }
+        }
+    }
+
+    public static function updateFile($file, array $info)
+    {
+        $content = file_get_contents($file);
+
+        // headers
+        foreach ($info as $key => $value) {
+            $content = str_replace("{{".$key."}}", $value, $content, $num);
+        }
+        // namespace
+        if (isset($info['namespace'])) {
+            $content = str_replace('namespace Vendor\Plugin', 'namespace ' . $info['namespace'], $content);
+        }
+
+        return (false !== file_put_contents($file, $content));
+    }
+
+    /**
+     * The plugin data storage
+     */
     protected static $package;
     protected static $namespace;
     protected static $plugin_name;
@@ -21,10 +83,11 @@ class Init
     protected static $license;
 
     /**
-     * Publish th plugin to the WordPress plugin repository
+     * Collect information about the plugin
      * @param Event $event
+     * @return array
      */
-    public static function init(Event $event)
+    public static function questionnaire(Event $event)
     {
         // start
         $io = $event->getIO();
@@ -84,18 +147,18 @@ class Init
             static::suggestLicense()
         );
 
-        $io->write(array(
-            static::$package,
-            static::$namespace,
-            static::$plugin_name,
-            static::$plugin_slug,
-            static::$version,
-            static::$description,
-            static::$url,
-            static::$author,
-            static::$author_url,
-            static::$license,
-        ));
+        return array(
+            'package' => static::$package,
+            'namespace' => static::$namespace,
+            'plugin_name' => static::$plugin_name,
+            'plugin_slug' => static::$plugin_slug,
+            'version' => static::$version,
+            'description' => static::$description,
+            'url' => static::$url,
+            'author' => static::$author,
+            'author_url' => static::$author_url,
+            'license' => static::$license,
+        );
     }
 
     public static function validatePackage($value)
