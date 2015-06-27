@@ -1,0 +1,20 @@
+{
+  "name": "mrgrain/jumpstart-init",
+  "description": "Collection of tools to init your WordPress plugin development with Jumpstart.",
+  "minimum-stability": "stable",
+  "license": "GPL-3.0+",
+  "authors": [
+    {
+      "name": "Moritz Kornher",
+      "email": "mail@moritzkornher.de"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Jumpstart\\": ""
+    }
+  },
+  "scripts": {
+    "jumpstart": "Jumpstart\\Init::init"
+  }
+}
