@@ -2,6 +2,7 @@
 namespace Jumpstart;
 
 use Composer\Script\Event;
+use Composer\Json\JsonFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RegexIterator;
@@ -33,11 +34,74 @@ class Init
         static::updateFiles($event, $files, $info);
 
         // create composer.json
+        static::mergeConfig($event, $info);
     }
 
     /**
-     * Update the boilerplate files with the additional informations
+     * Merge the current config with the updated data
      * @param Event $event
+     * @param array $info
+     */
+    public static function mergeConfig(Event $event, array $info)
+    {
+        // start
+        $io = $event->getIO();
+
+        $options = array(
+            "name" => $info['package'],
+            "description" => $info['description'],
+            "minimum-stability" => "dev",
+            "license" => $info['license'],
+            "keywords" => array(),
+            "type" => "wordpress-plugin",
+            "authors" => array(
+                array(
+                    "name" => $info['author'],
+                    "email" => $info['author_email'],
+                    "homepage" => $info['author_url'],
+                )
+            ),
+            "scripts" => array(
+                "jumpstart" => "Jumpstart\\Init::jumpstart",
+                "publish" => "Jumpstart\\Deploy::publish"
+            ),
+            "require" => array(
+                "composer/installers" => "~1.0",
+                "mrgrain/jumpstart-trampoline" => "~1.0"
+            ),
+            "require-dev" => array(
+                "mrgrain/jumpstart-init" => "@stable",
+                "mrgrain/jumpstart-deploy" => "@stable"
+            ),
+            "autoload" => array (
+                "psr-4" => array(
+                    $info['namespace'] => "src/"
+                )
+            )
+        );
+
+        $file = new JsonFile('composer.json');
+        $json = $file->encode($options);
+        $writeFile = true;
+
+        $io->write('Jumpstart has generated a composer.json for you.');
+        if ($io->askConfirmation('Do you want to check it before writing to disk? [yes]'."\t")) {
+            $writeFile = false;
+            $io->write($json);
+            if ($io->askConfirmation('Write the generated composer.json to disk? [yes]'."\t")) {
+                $writeFile = true;
+            }
+        }
+        if ($writeFile) {
+            $file->write($options);
+        }
+    }
+
+
+    /**
+     * Update the boilerplate files with the additional information
+     * @param Event $event
+     * @param $files
      * @param array $info
      */
     public static function updateFiles(Event $event, $files, array $info)
@@ -46,9 +110,14 @@ class Init
         $io = $event->getIO();
         if ($io->askConfirmation('Jumpstart will now update your files with the provided information. Okay? [yes]:'."\t")) {
             foreach ($files as $file) {
-                $io->write($file."\t", false);
-                $io->write(static::updateFile(array_pop($file), $info) ? 'OK' : 'Error');
+                $file = array_pop($file);
+                $io->write("\t".$file."\t", false);
+                $io->write(static::updateFile($file, $info) ? 'OK' : 'Error');
             }
+            if (file_exists('plugin.php')) {
+                rename('plugin.php', $info['plugin_slug'].'.php');
+            }
+            $io->write('');
         }
     }
 
@@ -61,9 +130,7 @@ class Init
             $content = str_replace("{{".$key."}}", $value, $content, $num);
         }
         // namespace
-        if (isset($info['namespace'])) {
-            $content = str_replace('namespace Vendor\Plugin', 'namespace ' . $info['namespace'], $content);
-        }
+        $content = str_replace('namespace Vendor\Plugin', 'namespace ' . $info['namespace'], $content);
 
         return (false !== file_put_contents($file, $content));
     }
@@ -79,6 +146,7 @@ class Init
     protected static $description;
     protected static $url;
     protected static $author;
+    protected static $author_email;
     protected static $author_url;
     protected static $license;
 
@@ -127,15 +195,21 @@ class Init
         );
         static::$description = $io->askAndValidate(
             'Description []:'."\t",
-            'Jumpstart\\Init::validateDescription'
+            'Jumpstart\\Init::validateDescription',
+            null,
+            ''
         );
         static::$url = $io->askAndValidate(
             'URL []:'."\t",
             'Jumpstart\\Init::validateURL'
         );
         static::$author = $io->ask(
-            'Author (Name <email@example.org>) ['.static::suggestAuthor().']:'."\t",
+            'Author ['.static::suggestAuthor().']:'."\t",
             static::suggestAuthor()
+        );
+        static::$author_email = $io->ask(
+            'Author Email ['.static::suggestAuthorEmail().']:'."\t",
+            static::suggestAuthorEmail()
         );
         static::$author_url = $io->askAndValidate(
             'Author URL []:'."\t",
@@ -143,7 +217,6 @@ class Init
         );
         static::$license = $io->ask(
             'License ['.static::suggestLicense().']:'."\t",
-            null,
             static::suggestLicense()
         );
 
@@ -156,29 +229,37 @@ class Init
             'description' => static::$description,
             'url' => static::$url,
             'author' => static::$author,
+            'author_email' => static::$author_email,
             'author_url' => static::$author_url,
             'license' => static::$license,
         );
     }
 
+    public static function validateNotEmpty($value)
+    {
+        if (strlen(trim($value)) <= 0) {
+            throw new \Exception('The value must not be empty.');
+        }
+        return $value;
+    }
     public static function validatePackage($value)
     {
-        if (1 !== preg_match("~^[a-zA-Z0-9-_]+/[a-zA-Z0-9-_]+$~", $value)) {
-            throw new \Exception('Package must only be in format <vendor>/<name>, each containing only letters, numbers or - and _');
+        if (1 !== preg_match("~^[a-z0-9_.-]+/[a-z0-9_.-]+$~", $value)) {
+            throw new \Exception('Package name must only be in lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+');
         }
         return $value;
     }
     public static function validateNamespace($value)
     {
         if (1 !== preg_match("~^[a-zA-Z0-9-_]+\\\\[a-zA-Z0-9-_]+$~", $value)) {
-            throw new \Exception('Namespace must only be in format <vendor>\<name>, each containing only letters, numbers or - and _');
+            throw new \Exception('Namespace must have a vendor name, a backward slash, and a package name, matching: [a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+');
         }
         return $value;
     }
     public static function validateSlug($value)
     {
         if (1 !== preg_match("~^[a-z0-9-_]+$~", $value)) {
-            throw new \Exception('Slug must contain lowercase letters, numbers or - and _');
+            throw new \Exception('Slug must must only be in lowercase, matching: [a-z0-9-_]+');
         }
         return $value;
     }
@@ -228,12 +309,15 @@ class Init
         if (!isset($author) || false === $author || empty($author)) {
             return '';
         }
-
+        return trim($author);
+    }
+    public static function suggestAuthorEmail()
+    {
         $email = `git config --global user.email`;
         if (!isset($email) || false === $email || empty($email)) {
-            return trim($author);
+            return '';
         }
-        return trim($author).' <'.trim($email).'>';
+        return trim($email);
     }
     public static function suggestLicense()
     {
