@@ -26,10 +26,20 @@ class Init
         $info = static::questionnaire($event);
 
         // update file headers
-        $files =  new RegexIterator(
-            new RecursiveIteratorIterator(new RecursiveDirectoryIterator('src')),
-            static::$filePattern,
-            RegexIterator::GET_MATCH
+        $files = new \AppendIterator();
+        $files->append(
+            new RegexIterator(
+                new RecursiveDirectoryIterator('.'),
+                static::$filePattern,
+                RegexIterator::GET_MATCH
+            )
+        );
+        $files->append(
+            new RegexIterator(
+                new RecursiveIteratorIterator(new RecursiveDirectoryIterator('src')),
+                static::$filePattern,
+                RegexIterator::GET_MATCH
+            )
         );
         static::updateFiles($event, $files, $info);
 
@@ -57,9 +67,8 @@ class Init
             "authors" => array(
                 array(
                     "name" => $info['author'],
-                    "email" => $info['author_email'],
-                    "homepage" => $info['author_url'],
-                )
+                    "email" => $info['author_email']
+                ) + (!empty($info['author_url']) ? array("homepage" => $info['author_url']) : array())
             ),
             "scripts" => array(
                 "jumpstart" => "Jumpstart\\Init::jumpstart",
@@ -73,9 +82,9 @@ class Init
                 "mrgrain/jumpstart-init" => "@stable",
                 "mrgrain/jumpstart-deploy" => "@stable"
             ),
-            "autoload" => array (
+            "autoload" => array(
                 "psr-4" => array(
-                    $info['namespace'] => "src/"
+                    $info['namespace']."\\" => "src/"
                 )
             )
         );
@@ -84,11 +93,11 @@ class Init
         $json = $file->encode($options);
         $writeFile = true;
 
-        $io->write('Jumpstart has generated a composer.json for you.');
-        if ($io->askConfirmation('Do you want to check it before writing to disk? [yes]'."\t")) {
+        $io->write('Jumpstart has generated a composer.json file for you.');
+        if ($io->askConfirmation('Do you want to check it before writing to disk? [yes]' . "\t")) {
             $writeFile = false;
             $io->write($json);
-            if ($io->askConfirmation('Write the generated composer.json to disk? [yes]'."\t")) {
+            if ($io->askConfirmation('Write the generated composer.json to disk? [yes]' . "\t")) {
                 $writeFile = true;
             }
         }
@@ -108,14 +117,14 @@ class Init
     {
         // start
         $io = $event->getIO();
-        if ($io->askConfirmation('Jumpstart will now update your files with the provided information. Okay? [yes]:'."\t")) {
+        if ($io->askConfirmation('Jumpstart will now update your files with the provided information. Okay? [yes]:' . "\t")) {
             foreach ($files as $file) {
                 $file = array_pop($file);
-                $io->write("\t".$file."\t", false);
+                $io->write("\t" . $file . "\t", false);
                 $io->write(static::updateFile($file, $info) ? 'OK' : 'Error');
             }
             if (file_exists('plugin.php')) {
-                rename('plugin.php', $info['plugin_slug'].'.php');
+                rename('plugin.php', $info['plugin_slug'] . '.php');
             }
             $io->write('');
         }
@@ -127,7 +136,7 @@ class Init
 
         // headers
         foreach ($info as $key => $value) {
-            $content = str_replace("{{".$key."}}", $value, $content, $num);
+            $content = str_replace("{{" . $key . "}}", $value, $content, $num);
         }
         // namespace
         $content = str_replace('namespace Vendor\Plugin', 'namespace ' . $info['namespace'], $content);
@@ -160,63 +169,63 @@ class Init
         // start
         $io = $event->getIO();
         $io->write(array(
-            PHP_EOL.PHP_EOL,
+            PHP_EOL . PHP_EOL,
             'Welcome to the Jumpstart Plugin generator',
-            PHP_EOL.PHP_EOL.PHP_EOL,
+            PHP_EOL . PHP_EOL . PHP_EOL,
             'This command will guide you through creating your basic plugin setup.'
         ));
 
         // Collect data
         static::$package = $io->askAndValidate(
-            'Package (<vendor>/<name>):'."\t",
+            'Package (<vendor>/<name>):' . "\t",
             'Jumpstart\\Init::validatePackage'
         );
         static::$namespace = $io->askAndValidate(
-            'PHP namespace (<vendor>\<name>) ['.static::suggestNamespace(static::$package).']:'."\t",
+            'PHP namespace (<vendor>\<name>) [' . static::suggestNamespace(static::$package) . ']:' . "\t",
             'Jumpstart\\Init::validateNamespace',
             null,
             static::suggestNamespace(static::$package)
         );
         static::$plugin_name = $io->ask(
-            'Plugin Name ['.static::suggestPluginName(static::$package).']:'."\t",
+            'Plugin Name [' . static::suggestPluginName(static::$package) . ']:' . "\t",
             static::suggestPluginName(static::$package)
         );
         static::$plugin_slug = $io->askAndValidate(
-            'Plugin Slug ['.static::suggestPluginSlug(static::$plugin_name).']:'."\t",
+            'Plugin Slug [' . static::suggestPluginSlug(static::$plugin_name) . ']:' . "\t",
             'Jumpstart\\Init::validateSlug',
             null,
             static::suggestPluginSlug(static::$plugin_name)
         );
         static::$version = $io->askAndValidate(
-            'Version (x.x.x) [1.0.0]:'."\t",
+            'Version (x.x.x) [1.0.0]:' . "\t",
             'Jumpstart\\Init::validateVersion',
             null,
             '1.0.0'
         );
         static::$description = $io->askAndValidate(
-            'Description []:'."\t",
+            'Description []:' . "\t",
             'Jumpstart\\Init::validateDescription',
             null,
             ''
         );
         static::$url = $io->askAndValidate(
-            'URL []:'."\t",
+            'URL []:' . "\t",
             'Jumpstart\\Init::validateURL'
         );
         static::$author = $io->ask(
-            'Author ['.static::suggestAuthor().']:'."\t",
+            'Author [' . static::suggestAuthor() . ']:' . "\t",
             static::suggestAuthor()
         );
         static::$author_email = $io->ask(
-            'Author Email ['.static::suggestAuthorEmail().']:'."\t",
+            'Author Email [' . static::suggestAuthorEmail() . ']:' . "\t",
             static::suggestAuthorEmail()
         );
         static::$author_url = $io->askAndValidate(
-            'Author URL []:'."\t",
+            'Author URL []:' . "\t",
             'Jumpstart\\Init::validateURL'
         );
         static::$license = $io->ask(
-            'License ['.static::suggestLicense().']:'."\t",
+            'License [' . static::suggestLicense() . ']:' . "\t",
             static::suggestLicense()
         );
 
@@ -242,6 +251,7 @@ class Init
         }
         return $value;
     }
+
     public static function validatePackage($value)
     {
         if (1 !== preg_match("~^[a-z0-9_.-]+/[a-z0-9_.-]+$~", $value)) {
@@ -249,6 +259,7 @@ class Init
         }
         return $value;
     }
+
     public static function validateNamespace($value)
     {
         if (1 !== preg_match("~^[a-zA-Z0-9-_]+\\\\[a-zA-Z0-9-_]+$~", $value)) {
@@ -256,6 +267,7 @@ class Init
         }
         return $value;
     }
+
     public static function validateSlug($value)
     {
         if (1 !== preg_match("~^[a-z0-9-_]+$~", $value)) {
@@ -263,6 +275,7 @@ class Init
         }
         return $value;
     }
+
     public static function validateVersion($value)
     {
         if (1 !== preg_match("~^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z0-9-_]+)?$~", $value)) {
@@ -270,6 +283,7 @@ class Init
         }
         return $value;
     }
+
     public static function validateDescription($value)
     {
         if (strlen($value) > 150) {
@@ -277,6 +291,7 @@ class Init
         }
         return $value;
     }
+
     public static function validateURL($value)
     {
         if (empty($value)) {
@@ -292,17 +307,19 @@ class Init
     {
         $vendor = strtok($value, "/");
         $package = strtok("/");
-        return ucfirst($vendor)."\\".ucfirst($package);
+        return ucfirst($vendor) . "\\" . ucfirst($package);
     }
 
     public static function suggestPluginName($value)
     {
-        return ucfirst(substr($value, strpos($value, "/")+1));
+        return ucfirst(substr($value, strpos($value, "/") + 1));
     }
+
     public static function suggestPluginSlug($value)
     {
         return strtolower(preg_replace("/[^A-Za-z0-9_]/", "", str_replace(" ", "_", $value)));
     }
+
     public static function suggestAuthor()
     {
         $author = `git config --global user.name`;
@@ -311,6 +328,7 @@ class Init
         }
         return trim($author);
     }
+
     public static function suggestAuthorEmail()
     {
         $email = `git config --global user.email`;
@@ -319,6 +337,7 @@ class Init
         }
         return trim($email);
     }
+
     public static function suggestLicense()
     {
         return 'GPL-3.0+';
