@@ -60,7 +60,6 @@ class Init
         $options = array(
             "name" => $info['package'],
             "description" => $info['description'],
-            "minimum-stability" => "dev",
             "license" => $info['license'],
             "keywords" => array(),
             "type" => "wordpress-plugin",
@@ -73,6 +72,8 @@ class Init
             "scripts" => array(
                 "publish" => "Jumpstart\\Deploy::publish"
             ),
+            "minimum-stability" => "dev",
+            "prefer-stable" => true,
             "require" => array(
                 "composer/installers" => "~1.0",
                 "mrgrain/jumpstart-trampoline" => "~1.0"
