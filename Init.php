@@ -71,7 +71,6 @@ class Init
                 ) + (!empty($info['author_url']) ? array("homepage" => $info['author_url']) : array())
             ),
             "scripts" => array(
-                "jumpstart" => "Jumpstart\\Init::jumpstart",
                 "publish" => "Jumpstart\\Deploy::publish"
             ),
             "require" => array(
@@ -79,7 +78,6 @@ class Init
                 "mrgrain/jumpstart-trampoline" => "~1.0"
             ),
             "require-dev" => array(
-                "mrgrain/jumpstart-init" => "@stable",
                 "mrgrain/jumpstart-deploy" => "@stable"
             ),
             "autoload" => array(
