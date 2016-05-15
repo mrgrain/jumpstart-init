@@ -76,14 +76,14 @@ class Init
             "prefer-stable" => true,
             "require" => array(
                 "composer/installers" => "~1.0",
-                "mrgrain/jumpstart-trampoline" => "~1.0"
+                "mrgrain/jumpstart-battery" => "~1.0"
             ),
             "require-dev" => array(
                 "mrgrain/jumpstart-deploy" => "@stable"
             ),
             "autoload" => array(
                 "psr-4" => array(
-                    $info['namespace']."\\" => "src/"
+                    $info['namespace'] . "\\" => "src/"
                 )
             )
         );
@@ -139,6 +139,7 @@ class Init
         }
         // namespace
         $content = str_replace('namespace Vendor\Plugin', 'namespace ' . $info['namespace'], $content);
+        $content = str_replace('use Vendor\Plugin', 'use ' . $info['namespace'], $content);
 
         return (false !== file_put_contents($file, $content));
     }
